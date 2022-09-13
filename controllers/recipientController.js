@@ -131,22 +131,28 @@ exports.getAllMessages = asyncHandler(async (req, res) => {
 });
 
 // @desc    Get SMS message by a given schedule
-// @route   GET /api/v1/messages?schedule=ID
+// @route   GET /api/v1/messages?schedule=keyword
 exports.getAllMessagesBySchedule = asyncHandler(async (req, res) => {
+  const pageSize = 10;
+  const page = Number(req.query.pageNumber) || 1;
   const keyword = req.query.keyword
     ? {
         schedule: {
+          $regex: req.query.keyword,
           $options: "i",
         },
       }
     : {};
+  const count = await messageModel.countDocuments({ ...keyword });
   const messages = await messageModel
     .find({ ...keyword })
     .populate("schedule")
     .populate("dnis", "name phoneNumber");
 
   if (messages) {
-    res.status(200).json(messages);
+    res
+      .status(200)
+      .json({ messages, page, pages: Math.ceil(count / pageSize) });
   } else {
     res.status(404);
     throw new Error("No messages found");
@@ -156,10 +162,36 @@ exports.getAllMessagesBySchedule = asyncHandler(async (req, res) => {
 // @desc    Get Status by ID
 // @route   GET /api/v1/Status/:id
 exports.getStatusById = asyncHandler(async (req, res) => {
-  const status = await Status.findById(req.params.id).populate("message_id");
+  const status = await Status.findById(req.params.id);
 
-  if (Status) {
-    res.json(Status);
+  if (status) {
+    res.json(status);
+  } else {
+    res.status(404);
+    throw new Error("Status not found");
+  }
+});
+
+// @desc    Get Status by ID
+// @route   GET /api/v1/Status/messageId?keyword=
+exports.getStatusByMessageId = asyncHandler(async (req, res) => {
+  const pageSize = 10;
+  const page = Number(req.query.pageNumber) || 1;
+  const keyword = req.query.keyword
+    ? {
+        message_id: {
+          $regex: req.query.keyword,
+          $options: "i",
+        },
+      }
+    : {};
+  const count = await Status.countDocuments({ ...keyword });
+  const allStatus = await Status.find({ ...keyword });
+
+  if (allStatus) {
+    res
+      .status(200)
+      .json({ allStatus, page, pages: Math.ceil(count / pageSize) });
   } else {
     res.status(404);
     throw new Error("Status not found");
